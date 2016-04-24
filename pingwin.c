@@ -35,7 +35,7 @@ void travelAndUnload()
 	int temp = r+tt;
 	temp=temp*SIZE_OF_UNIT_TIME;
 	sprintf(msg_buf,"%d : travel %d ms | unload %d ms\n",rank,temp,r*SIZE_OF_UNIT_TIME);
-	print_msg(msg_buf);
+	//print_msg(msg_buf);
 	usleep(temp*1000);
 	int i = snowZOO/ship_snow_cap;
 	if(snowZOO%ship_snow_cap != 0)
@@ -46,11 +46,13 @@ void travelAndUnload()
 }
 void send_msg(int tag,int count, int *buf,int source)
 {
-	char msg_buf[20];
+	char msg_buf[60];
 	
 	sprintf(msg_buf,"%d SEND | %d TAG\n",source, tag);
 	//print_msg(msg_buf);
-	
+	msg_buf[0] = '\0';
+	sprintf(msg_buf,"%d : Uaktualniam statki, wolne zostaje = %d\n",rank,buf[1]);
+	print_msg(msg_buf);	
 	int i;
 	MPI_Request request[size-1];
 	MPI_Status status[size-1];
@@ -59,13 +61,13 @@ void send_msg(int tag,int count, int *buf,int source)
 	if(i!=source){
 	char bu[30];
 	sprintf(bu,"%d wysylam zajecie %d shipow do %d\n",source,buf[1],i);
-	print_msg(bu);
+	//print_msg(bu);
 	//MPI_Isend(buf, count, MPI_INT, i, tag, MPI_COMM_WORLD,&request[i-1]);
 	MPI_Send(buf,count, MPI_INT, i, tag, MPI_COMM_WORLD);
 	//MPI_Wait(&request[i-1],&status[i-1]);
 	}
 	}
-	print_msg("wyslane\n");
+	//print_msg("wyslane\n");
 	//MPI_Waitall(size-1,request,status);
 }
 void check_and_recive_msg(int tag,int count)//sprawdzenie czy jest jakas wiadomosc o jakims tagu
@@ -88,11 +90,8 @@ void check_and_recive_msg(int tag,int count)//sprawdzenie czy jest jakas wiadomo
 	if(tag==MSG_TAG_SHIPS){
 	char temp_msg[100];
 	sprintf(temp_msg,"%d : Otrzymalem %d wartosci od %d (%d clock | %d value)| SHIPS\n" , rank, number, status.MPI_SOURCE, msg[0],msg[1]);
-	print_msg(temp_msg);
+	//print_msg(temp_msg);
 
-	
-//	if(clock_all[status.MPI_SOURCE] < msg[0]) // jezeli zegar jest wiekszy od tego co mamy, mozna nadpisac
-//	{
 	free_ships = msg[1];
 	clock_all[status.MPI_SOURCE]=msg[0];
 	}
@@ -107,7 +106,7 @@ void critical_loop()
 {
 	char msg_buf1[100];
 	sprintf(msg_buf1,"%d : critical enter\n", rank);
-	print_msg(msg_buf1);
+	//print_msg(msg_buf1);
 	MPI_Status status;
 	int number,flag;
 	//MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,&status); //sprawdza czy jest wiadomosc i zapisuje informacje o niej bez niej
@@ -130,12 +129,17 @@ void critical_loop()
 	check_and_recive_msg(MSG_TAG_SHIPS,2);
 	//printf("x");
 	}
+	int temp = free_ships;
 	free_ships = free_ships - snowZOO/ship_snow_cap; //zajecie statkow
 	if(snowZOO%ship_snow_cap!=0)
 		free_ships--;
 	int msg[2];
 	msg[0]=++clockT;
 	msg[1]=free_ships;
+	char temp_msg[130];
+	temp = temp- free_ships;
+	sprintf(temp_msg,"%d : Zajmuje %d statków\n",rank,temp);
+	print_msg(temp_msg);
 	send_msg(MSG_TAG_SHIPS,2,msg,rank);
 	//zwolnij kolejke
 	//wyslij wiadomosci z kolejką do wszystkich Isendem o tagu=MSG_TAG_QUEUE
@@ -246,15 +250,15 @@ int main( int argc, char **argv )
 		//printf( "Jestem %d z %d na \n", rank, size );
 		zoo_init();
 		int tr = 0;
-		while(tr++<3)
+		while(1)
 		{
 			local_loop();
 			critical_loop();
-			char msg[50];
-			sprintf(msg,"%d %d PRAWIE SKONCZONE\n",rank,tr);
-			print_msg(msg);
+			//char msg[50];
+			//sprintf(msg,"%d %d PRAWIE SKONCZONE\n",rank,tr);
+			//print_msg(msg);
 		}
-		print_msg("SKONCZONEEEE\n");
+		//print_msg("SKONCZONEEEE\n");
 	}	
 	MPI_Finalize();
 }
