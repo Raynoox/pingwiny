@@ -1,1 +1,1 @@
-mpirun -n 4 pingwin
+mpirun -n 20 pingwin
