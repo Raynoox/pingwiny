@@ -150,7 +150,9 @@ void entry_to_critical_section(int time)
 		confirmation[i]=0;
 	}
 	confirmation[rank] = 1;
+	pthread_mutex_lock(&mutex_clock);
 	msg[0] = ++clockT;
+	pthread_mutex_unlock(&mutex_clock);
 	msg[1] = rank;
 	msg[2] = needed_ships;
 	
@@ -183,7 +185,9 @@ void entry_to_critical_section(int time)
 void exit_critical_section(int time)
 {
 	int msg[3];
+	pthread_mutex_lock(&mutex_clock);
 	msg[0] = ++clockT;
+	pthread_mutex_unlock(&mutex_clock);
 	msg[1] = rank;
 	msg[2] = needed_ships;
 	//usun siebie z kolejki
@@ -212,17 +216,19 @@ void *zoo_listen(void *arg)
 		sprintf(bu,"%d: Otrzymalem wiadomosc o tagu %d, od rank %d, ilosc potrzebnych statkow %d confirmation_sum - %d, size-1 - %d\n",rank, status.MPI_TAG, status.MPI_SOURCE, msg[2],confirmation_sum(),size-1);
 		//print_msg(bu);
 		int i = status.MPI_TAG;
-
+		pthread_mutex_lock(&mutex_clock);
 		if(msg[0] > clockT)
 		clockT = msg[0];
+		pthread_mutex_unlock(&mutex_clock);
 
 		if( i == MSG_TAG_REQUEST)
 		{
 			pthread_mutex_lock(&mutex);
 			add_to_queue(msg[0],msg[1],msg[2]); //dodanie siebie do kolejki
 			pthread_mutex_unlock(&mutex);
-
+			pthread_mutex_lock(&mutex_clock);
 			msg[0] = ++clockT;
+			pthread_mutex_unlock(&mutex_clock);			
 			msg[1] = rank;
 			msg[2] = needed_ships;
 			MPI_Send(msg,3, MPI_INT, status.MPI_SOURCE, MSG_TAG_CONFIRMATION, MPI_COMM_WORLD); //wyslanie confirmation do procesu co wyslal request
@@ -283,6 +289,7 @@ int main( int argc, char **argv )
 	else
 	{	
 		pthread_mutex_init(&mutex, NULL);
+		pthread_mutex_init(&mutex_clock, NULL);
 		zoo_init();
 		srand(time(NULL)+rank*1000);
 		pthread_create(&thread[0], &attr, zoo_listen, (void *)0);		
